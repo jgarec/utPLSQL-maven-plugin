@@ -27,6 +27,7 @@ import org.utplsql.api.reporter.Reporter;
 import org.utplsql.api.reporter.ReporterFactory;
 import org.utplsql.maven.plugin.helper.PluginDefault;
 import org.utplsql.maven.plugin.helper.SQLScannerHelper;
+import org.utplsql.maven.plugin.model.CustomTypeMapping;
 import org.utplsql.maven.plugin.model.ReporterParameter;
 import org.utplsql.maven.plugin.reporter.ReporterWriter;
 
@@ -140,9 +141,11 @@ public class UtPLSQLMojo extends AbstractMojo {
 
 			// Create the Connection to the Database
 			connection = DriverManager.getConnection(url, user, password);
-			getLog().info("utPLSQL Version = " + DBHelper.getDatabaseFrameworkVersion(connection));
+			Version utlVersion = DBHelper.getDatabaseFrameworkVersion(connection);
+			getLog().info("utPLSQL Version = " + utlVersion);
 
-			List<Reporter> reporterList = initReporters(connection);
+		    ReporterFactory reporterFactory = ReporterFactory.createEmpty();
+			List<Reporter> reporterList = initReporters(connection, utlVersion, reporterFactory);
 
 			logParameters(sourceMappingOptions, testMappingOptions, reporterList);
 
@@ -317,15 +320,19 @@ public class UtPLSQLMojo extends AbstractMojo {
 	 * @return
 	 * @throws SQLException
 	 */
-	private List<Reporter> initReporters(Connection connection) throws SQLException {
+	private List<Reporter> initReporters(Connection connection, Version utlVersion, ReporterFactory reporterFactory) throws SQLException {
 		List<Reporter> reporterList = new ArrayList<>();
-
-		Version utlVersion = DBHelper.getDatabaseFrameworkVersion(connection);
 
 		// Initialized Reporters
 		reporterWriter = new ReporterWriter(targetDir, utlVersion);
-
-		ReporterFactory reporterFactory = ReporterFactory.createEmpty();
+		
+		if (reporters.isEmpty()) {
+		    // if reporter list is empty, add by default UT_DOCUMENTATION_REPORTER
+		    ReporterParameter reporterParameter = new ReporterParameter();
+		    reporterParameter.setConsoleOutput(true);
+		    reporterParameter.setName("UT_DOCUMENTATION_REPORTER");
+		    reporters.add(reporterParameter);
+		}
 
 		for (ReporterParameter reporterParameter : reporters) {
 			Reporter reporter = reporterFactory.createReporter(reporterParameter.getName());
